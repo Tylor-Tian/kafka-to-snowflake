@@ -1,0 +1,17 @@
+﻿{
+  "name": "sf-sink-events",
+  "config": {
+    "connector.class": "com.snowflake.kafka.connector.SnowflakeSinkConnector",
+    "tasks.max": "1",
+    "topics": "events",
+    "snowflake.url.name": "REPLACE_ME.snowflakecomputing.com:443",
+    "snowflake.user.name": "CONNECT_USER",
+    "snowflake.role.name": "CONNECT_ROLE",
+    "snowflake.database.name": "DEMO_DW",
+    "snowflake.schema.name": "RAW",
+    "snowflake.topic2table.map": "events:EVENTS_RAW_B",
+    "snowflake.ingestion.method": "SNOWPIPE_STREAMING",
+    "buffer.flush.time": "1",
+    "snowflake.private.key": "PASTE_YOUR_PRIVATE_KEY_PEM_OR_P8_CONTENTS"
+  }
+}

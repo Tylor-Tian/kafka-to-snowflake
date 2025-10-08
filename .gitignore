@@ -1,0 +1,17 @@
+﻿# Python
+__pycache__/
+*.pyc
+.venv/
+
+# local secrets & generated
+.env
+secrets/
+backup/
+health/
+docker/health/
+*.log
+*.csv
+*.tsv
+
+# installed plugins (should be installed at build)
+plugins/

@@ -1,0 +1,94 @@
+version: "3.8"
+
+services:
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.6.1
+    container_name: kafka_flow_data-zookeeper-1
+    ports:
+      - "2181:2181"
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    volumes:
+      - zk-data:/var/lib/zookeeper/data
+      - zk-log:/var/lib/zookeeper/log
+
+  kafka:
+    image: confluentinc/cp-kafka:7.6.1
+    container_name: kafka_flow_data-kafka-1
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+    environment:
+      # 监听器（内部通信用 kafka:29092，外部主机用 localhost:9092）
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://0.0.0.0:9092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+
+      # 连接 ZooKeeper
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+
+      # 存储位置（挂载为卷，避免重启丢失 offset/topic）
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
+
+      # 允许自动创建 topic（开发环境方便）
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+
+      # 内部 topic 的最小 ISR 等，保证单副本环境可用
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: "1"
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: "1"
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: "1"
+    volumes:
+      - kafka-data:/var/lib/kafka/data
+
+  connect:
+    # 1) 如果你用的是我之前给的 Dockerfile.connect 构建的镜像，请保持下面这一行：
+    # image: kafka_flow_data-connect
+    # 2) 如果你没有构建过自定义镜像，直接使用 Confluent 的官方镜像：
+    image: confluentinc/cp-kafka-connect:7.6.1
+
+    container_name: kafka_flow_data-connect-1
+    depends_on:
+      - kafka
+    ports:
+      - "8083:8083"
+    environment:
+      # Bootstrap servers 指向 compose 网络内的 kafka 服务
+      CONNECT_BOOTSTRAP_SERVERS: "kafka:29092"
+
+      # Connect REST
+      CONNECT_REST_ADVERTISED_HOST_NAME: "connect"
+      CONNECT_REST_PORT: "8083"
+
+      # Connect 内部 state topics（必需）
+      CONNECT_GROUP_ID: "connect-cluster"
+      CONNECT_CONFIG_STORAGE_TOPIC: "_connect-configs"
+      CONNECT_OFFSET_STORAGE_TOPIC: "_connect-offsets"
+      CONNECT_STATUS_STORAGE_TOPIC: "_connect-status"
+      CONNECT_CONFIG_STORAGE_REPLICATION_FACTOR: "1"
+      CONNECT_OFFSET_STORAGE_REPLICATION_FACTOR: "1"
+      CONNECT_STATUS_STORAGE_REPLICATION_FACTOR: "1"
+
+      # 转换器（我们使用 String，Sink 端再解析 JSON）
+      CONNECT_KEY_CONVERTER: "org.apache.kafka.connect.storage.StringConverter"
+      CONNECT_VALUE_CONVERTER: "org.apache.kafka.connect.storage.StringConverter"
+
+      # 插件路径（Snowflake Connector 会被自动识别到这个目录）
+      CONNECT_PLUGIN_PATH: "/usr/share/java,/usr/share/confluent-hub-components"
+
+      # 单 worker 存储（可选）
+      CONNECT_OFFSET_FLUSH_INTERVAL_MS: "10000"
+      CONNECT_REST_ADVERTISED_LISTENER: "http"
+
+    volumes:
+      - connect-data:/var/lib/kafka-connect   # 持久化 Connect 的内部状态
+      # 如你有自定义 Connector JAR，可额外挂载:
+      # - ./plugins:/usr/share/confluent-hub-components
+
+volumes:
+  kafka-data:
+  zk-data:
+  zk-log:
+  connect-data:
