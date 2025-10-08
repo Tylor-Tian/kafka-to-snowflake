@@ -36,28 +36,23 @@ snowflake/020_mart_views.sql
 snowflake/030_mon_schema_tasks.sql
 
 3) Bring up Kafka/ZooKeeper/Connect
-bash
-复制代码
+
 docker compose -f docker/docker-compose.yml up -d --build
 4) Create the Snowflake Sink connector
 Copy your private key to secrets/private_key.p8 (not tracked), then:
 
-powershell
-复制代码
+
 pwsh connector/create_connector.ps1 -PrivateKeyPath .\secrets\private_key.p8
 # verify:
 Invoke-RestMethod http://localhost:8083/connectors
 5) Send sample data
-bash
-复制代码
+
 python scripts/producer_weather.py
 6) Health check
-powershell
-复制代码
+
 pwsh scripts/healthcheck.ps1
 Project Structure
-bash
-复制代码
+
 docker/        # docker-compose & connect Dockerfile
 connector/     # connector template & creation script (no secrets)
 scripts/       # sample producer, healthcheck, backup
