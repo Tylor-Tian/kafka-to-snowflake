@@ -1,11 +1,72 @@
-﻿# Kafka 鈫?Snowflake Demo
+﻿# Kafka → Snowflake Demo
+
+[![Docker](https://img.shields.io/badge/Docker-ready-blue)]()
+[![Connector](https://img.shields.io/badge/Snowflake%20Kafka%20Connector-3.3.0-brightgreen)]()
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
+A minimal, production-oriented demo that streams events from **Kafka** to **Snowflake** via Kafka Connect (Snowflake Sink), with:
+- RAW landing table (`EVENTS_RAW_B`)
+- Robust JSON parsing view (`V_EVENTS_PARSED_RAW`) and fact table (`F_EVENTS_PARSED`)
+- Optional **Stream + Task** for 5-minute incremental loads
+- Healthcheck & backup scripts
+
+---
 
 ## Quick Start
-1. `cp .env.example .env` 骞跺～鍐欎笂闈㈢殑璐﹀彿锛堢閽ュ彟瑙佷笅鏂囷級銆?
-2. Snowflake 涓緷娆¤繍琛?`snowflake/000*`銆乣010*`銆乣020*`銆乣030*`銆?
-3. `docker compose -f docker/docker-compose.yml up -d --build`
-4. `pwsh connector/create_connector.ps1 -PrivateKeyPath .\secrets\private_key.p8`锛堥殢鍚?`Invoke-RestMethod http://localhost:8083/connectors` 鍙湅鍒?connector锛?
-5. `python scripts/producer_weather.py` 鍙戦€佹牱渚嬫暟鎹€?
-6. `pwsh scripts/healthcheck.ps1` 鏌ョ湅鍋ュ悍妫€鏌ヨ緭鍑恒€?
 
-> 娉ㄦ剰锛氫粨搴撲笉鍖呭惈绉侀挜鏂囦欢锛屾斁鍦?`secrets/private_key.p8`锛屼笉瑕佹彁浜ゅ埌 Git銆?
+### 0) Prereqs
+- Docker Desktop
+- Python 3.x (for the sample producer)
+- Snowflake account + key pair (private key stays local, **never** checked into git)
+
+### 1) Clone & prepare env
+```bash
+git clone https://github.com/Tylor-Tian/kafka-to-snowflake.git
+cd kafka-to-snowflake
+cp .env.example .env   # fill your Snowflake account etc.
+2) Create Snowflake objects
+In Snowsight, run in order:
+
+snowflake/000_prereq_roles_warehouses.sql
+
+snowflake/010_raw_stage_tables.sql
+
+snowflake/020_mart_views.sql
+
+snowflake/030_mon_schema_tasks.sql
+
+3) Bring up Kafka/ZooKeeper/Connect
+bash
+复制代码
+docker compose -f docker/docker-compose.yml up -d --build
+4) Create the Snowflake Sink connector
+Copy your private key to secrets/private_key.p8 (not tracked), then:
+
+powershell
+复制代码
+pwsh connector/create_connector.ps1 -PrivateKeyPath .\secrets\private_key.p8
+# verify:
+Invoke-RestMethod http://localhost:8083/connectors
+5) Send sample data
+bash
+复制代码
+python scripts/producer_weather.py
+6) Health check
+powershell
+复制代码
+pwsh scripts/healthcheck.ps1
+Project Structure
+bash
+复制代码
+docker/        # docker-compose & connect Dockerfile
+connector/     # connector template & creation script (no secrets)
+scripts/       # sample producer, healthcheck, backup
+snowflake/     # SQL: roles/wh, RAW tables, MART views, MON tasks
+docs/          # (optional) architecture, ops
+Notes
+Secrets are local only (secrets/private_key.p8) and ignored by git.
+
+The parsing view handles cases where the Kafka value is a JSON string with extra escape or a trailing literal `n.
+
+License
+MIT
